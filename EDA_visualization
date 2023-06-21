@@ -1,0 +1,197 @@
+#Assignment: Exploratory Data Analysis with tidyverse and ggplot2
+
+#seoul_bike_sharing <- "https://cf-courses-data.s3.us.cloud-object-storage.appdomain.cloud/IBMDeveloperSkillsNetwork-RP0321EN-SkillsNetwork/labs/datasets/seoul_bike_sharing.csv"
+
+# provide your solution here
+seoul_bike_sharing <- "https://cf-courses-data.s3.us.cloud-object-storage.appdomain.cloud/IBMDeveloperSkillsNetwork-RP0321EN-SkillsNetwork/labs/datasets/seoul_bike_sharing.csv"
+seoul_bike_sharing <- read.csv(seoul_bike_sharing, colClasses = c(DATE="character"))
+
+# provide your solution here
+seoul_bike_sharing$DATE <- as.Date(seoul_bike_sharing$DATE, format = "%d/%m/%Y")
+
+# provide your solution here
+seoul_bike_sharing$HOUR <- as.factor(seoul_bike_sharing$HOUR)
+
+
+
+#TASKS:
+#Load the seoul_bike_sharing data into a dataframe?
+install.packages('tidyvarese')
+library(tidyverse)
+datafram<- read.csv('C:/Users/LENOVO/Desktop/slides/FIXED_DATA/seoul1.CSV')
+View(datafram)
+#Task 2 - Recast DATE as a date- Use the format of the data, namely "%d/%m/%Y".
+#seoul<-  read.csv('C:/Users/LENOVO/Desktop/slides/FIXED_DATA/seoul1.CSV')
+#library(lubridate)
+class(datafram$DATE)
+#as.Date(datafram$DATE, "%m/%d/%y")
+#datafram$Month<format(datafram$DATE,'%m')
+install.packages('mltools')
+library(mltools)
+library(data.table)
+datafram$DATE  <- as.Date(datafram$DATE, format = "%d/%m/%Y")
+View(datafram)
+class(datafram$DATE)
+#Task 3 - Cast HOURS as a categorical variable
+class(datafram$HOUR)
+datafram$HOUR <- as.character(datafram$HOUR)
+class(datafram$HOUR)
+str(datafram)
+sum(is.na(datafram))
+#Also, coerce its levels to be an ordered sequence. This will ensure your visualizations correctly utilize HOURS as a discrete variable with the expected ordering.
+sqlQuery(select (*) from datafram)
+level_query
+#str
+str(datafram)
+#is.null
+colSums(is.na(datafram))
+#Descriptive Statistics
+#install.packages('psych ')
+#library(psych)
+#describe(datafram)
+#Now you are all set to take a look at some high level statistics of the seoul_bike_sharing dataset.
+# Task 4 - Dataset Summary - Use the base R sumamry() function to describe the seoul_bike_sharing dataset'''
+datafram$SEASONS = factor(datafram$SEASONS ,
+                       levels = c (1, 2, 3, 4),
+                       labels= c('Autumn', 'Winter', 'Summer', 'Spring')
+                       )
+summary(datafram)
+#%% 
+'''Some Basic Observations:
+We can see from DATE that we have exactly a full year of data.done
+No records have zero bike counts.done
+Spring and Winter have the same count of records,
+'''
+install.packages('sqldf')
+library(sqldf)
+query11<-sqldf ("select COUNT (*) AS TOTAL_WINTER from datafram where SEASONS = 'Winter' ")
+query11
+#query11<- sqlQuery(query11, believeNRow= FALSE)
+
+query12<- sqldf("select COUNT (*) AS TOTAL_SPRING from datafram where SEASONS = 'Spring' ")
+#query12<- sqlQuery(conn,query12, believeNRow= FALSE)
+query12
+
+# while autumn has the least and Summer has the most.
+query13<- sqldf("select COUNT (*) AS TOTAL_SUMMER from datafram where SEASONS = 'Summer' ")
+#query13<- sqlQuery(conn,query13, believeNRow= FALSE)
+query13
+
+query14<- sqldf("select COUNT (*) AS TOTAL_Autumn from datafram where SEASONS = 'Autumn' ")
+#query14<- sqlQuery(conn,query14, believeNRow= FALSE)
+query14
+
+'''
+Temperature has a large range, so we might expect it to explain at least some of the variation in bike rentals.
+Precipitation seems to be quite rare, only happening in the fourth quartiles for both RAINFALL and SNOWFALL.
+The average WINDSPEED is very light at only 1.7 m/s, and even the maximum is only a moderate breeze (Google 'Beaufort Wind Scale' to find the different wind descriptions)
+By now, you might agree that Exploratory Data Analysis can create more questions than answers. That's okay - you'll have a much deeper understanding and appreciation for your data as a result!
+'''
+##%%
+#Task 5 - Based on the above stats, calculate how many Holidays there are.?
+query15<-sqldf('select count (HOLIDAY) from datafram where HOLIDAY=1 ')
+#query15 <- sqlQuery(conn,query15, believeNRow = FALSE)
+query15
+#Task 6 - Calculate the percentage of records that fall on a holiday.
+query16<- sqldf('select No_Holiday, count(*) as NoHoliday_count,
+                count(*) * 100.0/ sum(count(*)) over () as NoHoliday_percent from datafram
+                GROUP BY (No_Holiday)')
+query16<- sqlQuery(conn, query16, believeNRow= FALSE)
+query16
+
+
+#Task 7 - Given there is exactly a full year of data, determine how many records we expect to have.
+# fully next year
+query7<- sqldf ('select count(Date) from datafram')
+query7
+#Task 8 - Given the observations for the 'FUNCTIONING_DAY' how many records must there be?
+query17<- sqldf("select count (FUNCTIONING_DAY) from datafram")
+#query17<- sqlQuery(conn, query17, believeNRow= FALSE)
+query17
+
+#Drilling Down
+#Let's calculate some seasonally aggregated measures to help build some more context.
+
+#Task 9 - Load the dplyr package, group the data by SEASONS, 
+#and use the summarize() function to calculate the seasonal total rainfall and snowfall.
+library(dplyr)
+library(tidyverse)
+#dataset<-datafram
+#View(dataset)
+datafram1<- datafram %>% group_by(SEASONS)
+datafram1 %>%
+  summarise(summary = sum(RAINFALL))
+datafram1 %>%
+  summarise(summary = sum(SNOWFALL))
+#library(psych)
+#describe(dataset)
+
+#Task 10 - Create a scatter plot of RENTED_BIKE_COUNT vs DATE.
+#Tune the opacity using the alpha parameter such that the points don't obscure each other too much.
+library(ggplot2)
+
+ggplot(datafram)+ geom_point(aes(x= DATE, y= RENTED_BIKE_COUNT, color= SEASONS), alpha= 0.3)+
+  labs(title = 'Scatter plot of rented bike count VS date', x='Date', y='Number of rented bikes')+
+  scale_x_date(breaks = 'month', date_labels = '%b-%y')+
+  theme(axis.title.x = element_text(angle = 45, hjust = 1))
+  
+#task 11  Create the same plot of the RENTED_BIKE_COUNT time series, but now add HOURS as the colour.
+ggplot(datafram)+ geom_point(aes(x= DATE, y= RENTED_BIKE_COUNT, color= HOUR), alpha= 0.3)+
+  labs(title = 'Scatter plot of rented bike count VS date', x='Date', y='Number of rented bikes')+
+  scale_x_date(breaks = 'month', date_labels = '%b-%y')+
+  theme(axis.title.x = element_text(angle = 45, hjust = 1))
+
+# TASK 12- Create a histogram overlaid with a kernel density curve
+#Normalize the histogram so the y axis represents 'density'. This can be done by setting y=..density.. in the aesthetics of the histogram.
+ggplot(datafram, aes(x= RENTED_BIKE_COUNT))+
+  geom_histogram(aes(y= ..density..))+
+  geom_density(colour= 'black', fill='white', alpha= 0.3)+ 
+  scale_x_continuous(breaks = seq(0, 4000, by= 500))
+
+
+
+#task 13 -Task 13 - Use a scatter plot to visualize the correlation between RENTED_BIKE_COUNT and TEMPERATURE by SEASONS.
+#Start with RENTED_BIKE_COUNT vs. TEMPERATURE, then generate four plots corresponding to the
+#SEASONS by adding a facet_wrap() layer. Also, make use of colour and opacity to emphasize any patterns
+#that emerge. Use HOUR as the color.
+ggplot(datafram) + geom_point(aes(x= TEMPERATURE, y= RENTED_BIKE_COUNT, color= HOUR), alpha= 0.5)+
+  labs(title = 'Number of rented bikes vs temperature grouping by seasons', x=' Temperature',
+       y= 'Bumber of rented bikes')+
+  facet_wrap(~SEASONS)+
+  scale_colour_hue(h= c(0, 270))
+# COMPARING WITHOUT GROUPING BY SEASONS
+ggplot(datafram) + geom_point(aes(x= TEMPERATURE, y= RENTED_BIKE_COUNT, color= HOUR), alpha= 0.5)+
+  labs(title = 'Number of rented bikes vs temperature', x=' Temperature', y= 'Bumber of rented bikes')
+  
+# task 14- 
+ggplot(datafram)+ geom_boxplot(aes(x= HOUR, y= RENTED_BIKE_COUNT, fill= HOUR))+
+  labs(title = 'number of rented bikes Vs hour grouping by seasons', x='Hour', y= 'Nmber of rented bikes')+
+  facet_wrap(~SEASONS)
+
+# TASK 15- Group the data by DATE, and use the summarize() function to calculate the daily total rainfall and snowfall.
+library(dplyr)
+datafram2<- datafram %>% group_by(DATE)
+datafram2 %>% summarize(TOTAL_RAINFALL = sum(RAINFALL), TOTAL_SNOWFALL = sum(SNOWFALL)) %>%
+  slice(0:10)
+
+# go ahead and plot the results if you wish.
+install.packages('gridExtra')
+library(gridExtra)
+scat1<- ggplot(datafram)+ geom_line(aes(x=DATE, y= RAINFALL), color='blue')+
+  labs(title = 'total daily rain flall over the year',x= 'DATE', y='RAINFALL (mm)')+
+  scale_x_date(date_breaks = 'months', date_labels = '%b-%y')+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+scat2<- ggplot(datafram)+ geom_line(aes(x=DATE, y= SNOWFALL), color= 'orange')+
+  labs(title = 'total daily snow flall over the year',x= 'DATE', y='SNOWFALL (Cm)')+
+  scale_x_date(date_breaks = 'months', date_labels = '%b-%y')+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+grid.arrange(scat1, scat2, nrow=2)
+
+# TASK 16
+snow_days<- datafram %>% group_by(DATE) %>%
+  filter(SNOWFALL != 0) %>%
+  summarize(TOTAL_SNOWFALL = sum(SNOWFALL))
+
+nrow(snow_days)
