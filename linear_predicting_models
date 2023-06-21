@@ -1,0 +1,223 @@
+#Predict Hourly Rented Bike Count using Basic Linear Regression Models
+
+
+# It may take several minutes to install those libraries in Watson Studio
+#install.packages("rlang")
+#install.packages("tidymodels")
+
+library("tidymodels")
+library("tidyverse")
+library("stringr")
+
+
+# Dataset URL
+dataset_url <- "https://cf-courses-data.s3.us.cloud-object-storage.appdomain.cloud/IBMDeveloperSkillsNetwork-RP0321EN-SkillsNetwork/labs/datasets/seoul_bike_sharing_converted_normalized.csv"
+bike_sharing_df <- read_csv(dataset_url)
+spec(bike_sharing_df)
+
+
+bike_sharing_df <- bike_sharing_df %>% select(-DATE, - FUNCTIONING_DAY)
+
+lm_spec <- linear_reg() %>% 
+  set_engine('lm') %>% 
+  set_mode('regression')
+
+set.seed(1234)
+data_split <- initial_split(bike_sharing_df, prop = 4/5)
+train_data <- training(data_split)
+test_data <- testing(data_split)
+
+#check the linearity btw bike_count nad teperature
+
+ggplot(data = train_data, aes(RENTED_BIKE_COUNT, TEMPERATURE)) + 
+  geom_point() 
+
+# fit the a spec_linear_regression into our important predictors
+#lm_model_weather <- lm_spec %>% fit(RENTED_BIKE_COUNT ~ TEMPERATURE + HUMIDITY + WIND_SPEED + VISIBILITY + DEW_POINT_TEMPERATURE + SOLAR_RADIATION + RAINFALL + SNOWFALL, data = train_data)
+
+lm_model_weather <- lm_spec %>% fit(RENTED_BIKE_COUNT ~ TEMPERATURE+ HUMIDITY +
+                                      WIND_SPEED + VISIBILITY + DEW_POINT_TEMPERATURE+ 
+                                      SOLAR_RADIATION+ RAINFALL + SNOWFALL,data=train_data)
+summary(lm_model_weather$fit)
+
+lm_model_all<- linear_reg(mod='regression') %>% set_engine(engine = 'lm')
+lm_model_all <- lm_model_all %>% fit(RENTED_BIKE_COUNT ~ . , data = train_data)
+summary(lm_model_all$fit)
+
+
+
+test_results_weather<- lm_model_weather %>% predict(new_data =  test_data) %>% 
+  mutate(truth = test_data$RENTED_BIKE_COUNT)
+test_results_all <- lm_model_all %>% predict(new_data = test_data) %>% 
+  mutate(truth= test_data$RENTED_BIKE_COUNT)
+
+test_results_weather
+test_results_all
+rsq_weather <- rsq(test_results_weather, truth = truth, estimate = .pred)
+rsq_all <- rsq(test_results_all, truth = truth, estimate = .pred)
+
+rmse_weather<- rmse(test_results_weather, truth = truth, estimate= .pred)
+rmse_all <- rmse (test_results_all, truth = truth, estimate = .pred)
+
+rsq_weather
+rsq_all
+rmse_weather
+rmse_all
+
+lm_model_all$fit$coefficients
+
+
+lm_model_all_coefficients <- sort(abs(coef(lm_model_all$fit)),decreasing= TRUE)
+head(lm_model_all_coefficients)
+#converting to df
+coef_df<- data.frame(lm_model_all_coefficients) %>% rownames_to_column('variable')
+head(coef_df)
+#create plot
+ggplot(coef_df, aes(x= reorder (variable, lm_model_all_coefficients), y= lm_model_all_coefficients)) +
+  geom_bar(stat = 'identity')+
+  coord_flip()+
+  xlab('cofficients value')+
+  ylab('cofficients namd')+
+  ggtitle('Sorted cofficients')
+
+# check the linearity btw Temperature and dependent variable: using ggplot:
+ggplot(data=train_data, aes(RENTED_BIKE_COUNT, TEMPERATURE))+ geom_point()
+
+ggplot(data=train_set, aes(RENTED_BIKE_COUNT,TEMPERATURE)) + 
+  geom_point() + 
+  geom_smooth(method = "lm", formula = y ~ x, color="red") + 
+  geom_smooth(method = "lm", formula = y ~ poly(x , 2), color="yellow")+
+  geom_smooth(method = "lm", formula = y ~ poly(x, 4), color="green") + 
+  geom_smooth(method = "lm", formula = y ~ poly(x, 6), color="blue")
+
+#fit linear regression on higher POLYNOMIAL orders:
+
+#lm_poly <- lm_spec %>% fit(RENTED_BIKE_COUNT ~ . + poly(RAINFALL, 8) + poly(HUMIDITY, 6) + poly(TEMPERATURE, 4), data = train_data)
+lm_poly<-lm_spec %>% fit(RENTED_BIKE_COUNT~ .+ poly(RAINFALL,8)  + 
+                           poly(HUMIDITY,6) + poly(TEMPERATURE ,4), data= train_data)
+summary(lm_poly$fit)
+
+lm_poly_predict<- lm_poly %>% predict(new_data =  test_data) %>% 
+  mutate(truth = test_data$RENTED_BIKE_COUNT)
+lm_poly_predict
+lm_poly_predict[lm_poly_predict<0] <- 0
+
+rsq(lm_poly_predict, truth = truth, estimate =.pred_res)
+rmse(lm_poly_predict, truth = truth, estimate =.pred_res)
+
+#interaction terms:
+#lm_poly2 <- lm_spec %>% fit(RENTED_BIKE_COUNT ~ . + poly(RAINFALL, 8) + poly(HUMIDITY, 6) + poly(TEMPERATURE, 4) + RAINFALL*HUMIDITY, data = train_data)
+
+lm_poly_interacted<-lm_spec %>% fit(RENTED_BIKE_COUNT ~. +
+                                      poly(RAINFALL, 8) +poly(HUMIDITY,6)+ 
+                                      poly(TEMPERATURE,4) +
+                                      RAINFALL*HUMIDITY, data= train_data)
+summary(lm_poly_interacted$fit)
+
+#evaluated:
+lm_poly_interacted_predict<- lm_poly_interacted %>% predict(new_data =  test_data) %>% 
+  mutate(truth = test_data$RENTED_BIKE_COUNT)
+lm_poly_interacted_predict
+lm_poly_interacted_predict[lm_poly_interacted_predict<0] <- 0
+
+rsq(lm_poly_interacted_predict, truth = truth, estimate =.pred_res)
+rmse(lm_poly_interacted_predict, truth = truth, estimate =.pred_res)
+
+#even after interacting the model, it still giving us the same performance
+# regularization:
+
+glmnet_spec <- linear_reg(penalty = 0.1, mixture =  0) %>% 
+  set_engine('glmnet')
+
+install.packages('glmnet')
+library(glmnet)
+lm_glmnet <- glmnet_spec %>% fit(RENTED_BIKE_COUNT ~ . + poly(RAINFALL, 8)
+                                 + poly(HUMIDITY, 6) + poly(TEMPERATURE, 4) +
+                                   HUMIDITY*TEMPERATURE, data = train_data)
+
+#evaluated:
+glmnet_predect<- lm_glmnet %>% predict(new_data =  test_data) %>% 
+  mutate(truth = test_data$RENTED_BIKE_COUNT)
+glmnet_predect
+glmnet_predect[glmnet_predect<0] <- 0
+
+rsq(glmnet_predect, truth = truth, estimate =.pred)
+rmse(glmnet_predect, truth = truth, estimate =.pred)
+ 
+# now the model improved , with increasing in RMSE and decresing in R2
+
+model1<- lm_spec %>% fit(RENTED_BIKE_COUNT ~ RAINFALL+ HUMIDITY+ TEMPERATURE+ 
+                           DEW_POINT_TEMPERATURE+ AUTUMN+ SOLAR_RADIATION, data=train_data)
+model2 <- lm_spec %>% fit(RENTED_BIKE_COUNT ~ poly(RAINFALL,8)+ poly(HUMIDITY,6)+
+                            poly(TEMPERATURE, 4)+ poly(DEW_POINT_TEMPERATURE, 4)+ 
+                            poly(SOLAR_RADIATION,4)+RAINFALL* DEW_POINT_TEMPERATURE,
+                          data= train_data)
+model3<- glmnet_spec %>% fit(RENTED_BIKE_COUNT ~poly(RAINFALL,8)+ poly(HUMIDITY,6)+
+                               poly(TEMPERATURE, 4)+ poly(DEW_POINT_TEMPERATURE, 4)+
+                               poly(SOLAR_RADIATION,4),data= train_data)
+model4<- lm_spec %>% fit(RENTED_BIKE_COUNT ~ RAINFALL+ HUMIDITY+ TEMPERATURE+
+                           DEW_POINT_TEMPERATURE+ AUTUMN+ SOLAR_RADIATION+VISIBILITY+
+                           SNOWFALL+HOLIDAY, data=train_data)
+model5<- lm_spec %>% fit(RENTED_BIKE_COUNT ~ . + poly(RAINFALL, 8) + poly(HUMIDITY, 6) +
+                           poly(TEMPERATURE, 4), data=train_data)
+
+model1_predict<- model1 %>% predict(new_data =  test_data) %>% 
+  mutate(truth = test_data$RENTED_BIKE_COUNT)
+model1_predict
+model1_predict[model1_predict<0] <- 0
+
+model2_predict<- model2 %>% predict(new_data= test_data) %>%
+  mutate (truth= test_data$RENTED_BIKE_COUNT)
+model2_predict
+model2_predict[model2_predict<0] <- 0
+
+model3_predict<- model3 %>% predict(new_data= test_data) %>%
+  mutate (truth= test_data$RENTED_BIKE_COUNT)
+model3_predict
+model3_predict[model3_predict<0] <- 0
+
+model4_predict<- model4 %>% predict(new_data= test_data) %>%
+  mutate (truth= test_data$RENTED_BIKE_COUNT)
+model4_predict
+model4_predict[model4_predict<0] <- 0
+
+model5_predict<- model5 %>% predict(new_data= test_data) %>%
+  mutate (truth= test_data$RENTED_BIKE_COUNT)
+model5_predict
+model5_predict[model5_predict<0] <- 0
+
+
+rsq1<- rsq(model1_predict, truth = truth, estimate =.pred)
+rmse1<- rmse(model1_predict, truth = truth, estimate =.pred)
+
+model2_predict
+rsq2<- rsq(model2_predict, truth = truth, estimate =.pred_res)
+rmse2<- rmse(model2_predict, truth = truth, estimate =.pred_res)
+
+rsq3<- rsq(model3_predict, truth = truth, estimate =.pred)
+rmse3 <-rmse(model3_predict, truth = truth, estimate =.pred)
+
+rsq4<- rsq(model4_predict, truth = truth, estimate =.pred)
+rmse4<- rmse(model4_predict, truth = truth, estimate =.pred)
+
+rsq5<- rsq(model5_predict, truth = truth, estimate =.pred_res)
+rmse5<- rmse(model5_predict, truth = truth, estimate =.pred_res)
+
+#model1 for rsq and RMSE
+
+#reporting the results:
+rsq1
+model_name<- c('model1','model1','model2','model2','model3','model3','model4','model4',
+               'model5','model5')
+stat<- c('rmse', 'rsq', 'rmse', 'rsq', 'rmse', 'rsq', 'rmse', 'rsq','rmse', 'rsq')
+estimate<-c(rmse1$`.estimate`,rsq1$`.estimate`, rmse2$`.estimate`,rsq2$`.estimate`,
+            rmse3$`.estimate`,rsq3$`.estimate`,  rmse4$`.estimate`,  rsq4$`.estimate`,
+            rmse5$`.estimate`,  rsq5$`.estimate`)
+comparison_df<- data.frame(model_name, stat, estimate)
+comparison_df
+
+ggplot(data=comparison_df, aes(x= model_name , y= estimate)) + 
+         geom_bar(stat = 'identity') + facet_wrap(.~ stat, scales= 'free_y')
+
+ggplot(data=model5_predict)+ stat_qq(aes(sample=truth), color='green')+
+         stat_qq(aes(sample=.pred_res),color= 'red')
