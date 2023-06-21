@@ -1,0 +1,116 @@
+#Assignment: Exploratory Data Analysis with SQL
+
+install.packages("RSQLite")
+install.packages('RODBC')
+install.packages('odbc')
+library('RSQLite')
+library(RODBC)
+library(odbc)
+dsn_driver <- "{IBM DB2 ODBC Driver}"
+dsn_database <- "bludb"
+dsn_hostname <- "b0aebb68-94fa-46ec-a1fc-1c999edb6187.c3n41cmd0nqnrk39u98g.databases.appdomain.cloud"
+dsn_port <- "31249"
+dsn_protocol <- "TCPIP"
+dsn_uid <- "gjb11938"
+dsn_pwd <- "v1Q7dBZHJea3aNMf"
+dsn_security <- "ssl"
+conn <- odbcDriverConnect(paste0("DRIVER=", dsn_driver,
+                                 ";DATABASE=", dsn_database,
+                                 ";HOSTNAME=", dsn_hostname,
+                                 ";PORT=", dsn_port,
+                                 ";PROTOCOL=", dsn_protocol,
+                                 ";UID=", dsn_uid,
+                                 ";PWD=", dsn_pwd,
+                                 ";SECURITY=", dsn_security))
+
+conn
+sql.info <- sqlTypeInfo(conn)
+conn.info <- odbcGetInfo(conn)
+conn.info["DBMS_Name"]
+conn.info["DBMS_Ver"]
+conn.info["Driver_ODBC_Ver"]
+
+conn
+
+
+# provide your solution here
+query <- "SELECT COUNT(*) FROM SEOUL_BIKE_SHARING"
+view <- sqlQuery(conn,query)
+view
+
+# provide your solution here
+query <- "SELECT COUNT(HOUR) FROM SEOUL_BIKE_SHARING WHERE RENTED_BIKE_COUNT <> 0"
+view <- sqlQuery(conn,query)
+view
+# provide your solution here
+query <- "SELECT * FROM CITIES_WEATHER_FORECAST ORDER BY FORECAST_DATETIME DESC LIMIT 1"
+view <- sqlQuery(conn,query)
+view
+
+
+# provide your solution here
+query <- "SELECT DISTINCT SEASONS FROM SEOUL_BIKE_SHARING"
+view <- sqlQuery(conn,query)
+view
+
+
+# provide your solution here
+query <- "SELECT MIN(DATE) FIRST_DATE, MAX(DATE) LAST_DATE FROM SEOUL_BIKE_SHARING"
+view <- sqlQuery(conn,query)
+view
+     
+
+# provide your solution here
+query <- "SELECT DATE, HOUR, RENTED_BIKE_COUNT FROM SEOUL_BIKE_SHARING ORDER BY RENTED_BIKE_COUNT DESC LIMIT 1"
+view <- sqlQuery(conn,query)
+view
+
+
+# provide your solution here
+query <- "SELECT HOUR, AVG(TEMPERATURE) AVG_TEMP, AVG(RENTED_BIKE_COUNT) AVG_BIKES, SEASONS 
+            FROM SEOUL_BIKE_SHARING
+            GROUP BY HOUR, SEASONS
+            ORDER BY AVG_BIKES DESC LIMIT 10"
+view <- sqlQuery(conn,query)
+view
+
+
+# provide your solution here
+query <- "SELECT AVG(RENTED_BIKE_COUNT) AVG, MIN(RENTED_BIKE_COUNT) MIN, MAX(RENTED_BIKE_COUNT) MAX, STDDEV(RENTED_BIKE_COUNT) STDDEV, SEASONS 
+            FROM SEOUL_BIKE_SHARING
+            GROUP BY SEASONS"
+view <- sqlQuery(conn,query)
+view
+
+
+# provide your solution here
+query <- "SELECT SEASONS, AVG(RENTED_BIKE_COUNT) RENTED_BIKE_COUNT, AVG(TEMPERATURE) TEMPERATURE, AVG(HUMIDITY) HUMIDITY, AVG(WIND_SPEED) WIND_SPEED, AVG(VISIBILITY) VISIBILITY, AVG(DEW_POINT_TEMPERATURE) DEW_POINT_TEMPERATURE, AVG(SOLAR_RADIATION) SOLAR_RADIATION, AVG(RAINFALL) RAINFALL, AVG(SNOWFALL) SNOWFALL
+            FROM SEOUL_BIKE_SHARING
+            GROUP BY SEASONS
+            ORDER BY RENTED_BIKE_COUNT DESC"
+view <- sqlQuery(conn,query)
+view
+     
+     
+
+# provide your solution here
+query <- "SELECT CITY_ASCII CITY, BIKE_SHARING_SYSTEMS.COUNTRY, LAT, LNG, POPULATION, BICYCLES
+            FROM WORLD_CITIES, BIKE_SHARING_SYSTEMS
+            WHERE WORLD_CITIES.CITY_ASCII = BIKE_SHARING_SYSTEMS.CITY
+            AND CITY_ASCII = 'Seoul'"
+view <- sqlQuery(conn,query)
+view
+
+
+
+
+# provide your solution here
+query <- "SELECT BIKE_SHARING_SYSTEMS.CITY, BIKE_SHARING_SYSTEMS.COUNTRY, LAT, LNG, POPULATION, BICYCLES
+            FROM WORLD_CITIES, BIKE_SHARING_SYSTEMS
+            WHERE WORLD_CITIES.CITY_ASCII = BIKE_SHARING_SYSTEMS.CITY
+            AND BICYCLES BETWEEN 15000 AND 20000"
+view <- sqlQuery(conn,query)
+view
+     
+
+close(conn)
